@@ -1,8 +1,6 @@
-streamlit>=1.36
-Pillow>=10
-polars>=1.5
-pyarrow>=17
-pandas>=2.2
-openpyxl>=3.1
-plotly>=5.22
-python-dateutil>=2.9
+streamlit>=1.32.0
+pandas>=2.0.0
+openpyxl>=3.1.2
+xlrd>=2.0.1
+xlsxwriter>=3.1.9
+Pillow>=9.0.0
