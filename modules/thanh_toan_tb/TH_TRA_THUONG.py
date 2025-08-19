@@ -1,55 +1,106 @@
 # modules/thanh_toan_tb/TH_TRA_THUONG.py
-import os
-from pathlib import Path
-from typing import Dict, List
-
+from __future__ import annotations
 import pandas as pd
+import os
+from typing import Dict, List
+from pathlib import Path
 
-CONFIG = ["Còn lại", "Số tiền đã trả thưởng"]
+# 2 tiêu đề cần lấy – ta sẽ tìm theo kiểu "tương đồng"
+TARGET_HEADERS = ["Còn lại", "Số tiền đã trả thưởng"]
 
-def run(input_dir: str | Path = "data/raw",
-        output_path: str | Path = "data/raw/output-tra-thuong.xlsx"):
+def _normalize(s: str) -> str:
+    # chữ thường + bỏ khoảng thừa 2 bên
+    return str(s).strip().lower()
+
+def _find_header(df: pd.DataFrame, wanted: str) -> str | None:
     """
-    Hợp nhất tất cả file Excel trong input_dir và xuất ra 1 file Excel.
-    - KHÔNG đổi CWD; dùng đường dẫn tuyệt đối
-    - Luôn tạo thư mục cha của output trước khi ghi
+    Tìm cột tương ứng với 'wanted' theo kiểu tolerant:
+    - không phân biệt hoa/thường, bỏ khoảng thừa
+    - chấp nhận vài biến thể phổ biến
     """
-    input_dir = Path(input_dir).resolve()
-    output_path = Path(output_path).resolve()
+    wanted_norm = _normalize(wanted)
+    variants = {wanted_norm}
+    # một vài biến thể hay gặp
+    if "còn lại" in wanted_norm:
+        variants |= {"con lai", "con_lai"}
+    if "số tiền đã trả thưởng" in wanted_norm:
+        variants |= {
+            "so tien da tra thuong", "số tiền đã tt", "so tien da tt",
+            "so tien da tra", "số tiền đã trả"
+        }
 
-    # đảm bảo thư mục cha tồn tại
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    norm_map = {_normalize(c): c for c in df.columns}
+    for v in variants:
+        if v in norm_map:
+            return norm_map[v]
+    # fallback: tìm cột chứa cụm từ
+    for norm, raw in norm_map.items():
+        if all(tok in norm for tok in wanted_norm.split()):
+            return raw
+    return None
 
-    def get_data(config: str):
-        data: Dict[str, List[str]] = {}
-        for p in sorted(input_dir.iterdir()):
-            if not (p.suffix.lower() in [".xlsx", ".xls"]):
-                continue
-            # đọc sheet đầu, bỏ 1 dòng header như logic gốc
-            file = pd.ExcelFile(str(p))
-            df = pd.read_excel(file, file.sheet_names[0], skiprows=1)
+def run(input_dir: str | Path = "data/raw", output_path: str | Path = "output-tra-thuong.xlsx"):
+    """
+    Hợp nhất các file Excel trong input_dir → 1 file Excel có 2 sheet:
+    - 'Còn lại'
+    - 'Số tiền đã trả thưởng'
+    (nếu thiếu cột sẽ bỏ qua file đó và ghi chú ra console)
+    """
+    input_dir = Path(input_dir)
+    if not input_dir.exists():
+        raise FileNotFoundError(f"Input dir not found: {input_dir}")
 
-            _data: Dict[str, Dict[int, str]] = df[df[config] != 0].to_dict()
-            for k, v in _data.items():
-                data.setdefault(k, [])
-                data[k].extend(list(v.values()))
+    cwd_old = Path.cwd()
+    os.chdir(input_dir)  # Giữ logic “đọc trong thư mục” cũ
 
-            if len(_data.get("STT", {})) == 0:
-                print(f'File "{p.name}" không có "{config}"!\n')
-                continue
+    try:
+        def build_sheet_for(header_label: str) -> pd.DataFrame:
+            data: Dict[str, List[str]] = {}
+            files = [f for f in os.listdir() if f.endswith((".xlsx", ".xls")) and not f.startswith("~$")]
+            for filename in files:
+                # Đọc .xlsx / .xls (xlrd cho xls)
+                try:
+                    xls = pd.ExcelFile(filename, engine=None)  # pandas tự chọn, với .xls cần xlrd
+                    df = pd.read_excel(xls, xls.sheet_names[0], skiprows=1, engine=None)
+                except Exception as e:
+                    print(f"[WARN] Không đọc được '{filename}': {e}")
+                    continue
 
-            data.setdefault("", [])
-            data[""].extend([p.name] + [""] * (len(list(_data.get("STT", {}).values())) - 1))
-        return data
+                col = _find_header(df, header_label)
+                if not col:
+                    print(f"[WARN] '{filename}' thiếu cột '{header_label}', bỏ qua.")
+                    continue
 
-    dfs = [pd.DataFrame(get_data(config)) for config in CONFIG]
+                # Lọc các dòng col != 0 (an toàn với NaN)
+                try:
+                    mask = df[col].fillna(0) != 0
+                    _data = df.loc[mask].to_dict()
+                except Exception as e:
+                    print(f"[WARN] Lỗi lọc dữ liệu '{filename}' ({header_label}): {e}")
+                    continue
 
-    # dùng str(output_path) + engine xlsxwriter
-    with pd.ExcelWriter(str(output_path), engine="xlsxwriter") as writer:
-        for df, config in zip(dfs, CONFIG):
-            df.to_excel(writer, sheet_name=config, index=False)
+                for k, v in _data.items():
+                    data.setdefault(k, [])
+                    data[k].extend(list(v.values()))
 
-    print(f"✅ Đã tạo file {output_path}")
+                # Ghi tên file vào cột trống "" (đúng với logic cũ)
+                if "STT" in _data and len(_data["STT"]) == 0:
+                    print(f"[INFO] File '{filename}' không có dòng hợp lệ cho '{header_label}'.")
+                    continue
+                data.setdefault("", [])
+                count_rows = len(_data[next(iter(_data))]) if _data else 0
+                data[""].extend([filename] + [""] * (max(count_rows - 1, 0)))
+
+            return pd.DataFrame(data)
+
+        sheets = [build_sheet_for(lbl) for lbl in TARGET_HEADERS]
+        with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+            for df, name in zip(sheets, TARGET_HEADERS):
+                df.to_excel(writer, sheet_name=name, index=False)
+
+        print(f"✅ Đã tạo file {output_path}")
+    finally:
+        os.chdir(cwd_old)
 
 if __name__ == "__main__":
     run()
