@@ -1,93 +1,113 @@
-# === BẮT BUỘC: đảm bảo import được "modules/..." khi chạy từ pages/ ===
+# pages/1_💸_ThanhToan_TB.py
+from __future__ import annotations
+# ==== đảm bảo import modules/... ====
 from pathlib import Path
 import sys
-ROOT = Path(__file__).resolve().parents[1]   # thư mục gốc project
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-# =====================================================================
 
 import streamlit as st
-import os
 import pandas as pd
-
-# Import HÀM run(...) từ module của bạn
+import os, tempfile, shutil
 from modules.thanh_toan_tb.TH_TRA_THUONG import run as merge_run
 from modules.thanh_toan_tb.main_TT_tra_thuong import run as main_run
-from modules.utils import init_dirs   # <-- import hàm khởi tạo thư mục
-
-# Khởi tạo thư mục chuẩn
-RAW_DIR, EXPORT_DIR, PROCESSED_DIR, LOGS_DIR = init_dirs()
 
 st.title("💸 Thanh toán trả thưởng trưng bày")
 
-# ================== BƯỚC 1: HỢP NHẤT FILE HT DMS (tuỳ chọn) ==================
-st.markdown("### 1) Hợp nhất file từ HT DMS (tuỳ chọn)")
+RAW_DIR = ROOT / "data" / "raw"
+EXPORT_DIR = ROOT / "data" / "exports"
+for d in [RAW_DIR, EXPORT_DIR, ROOT / "data" / "processed", ROOT / "logs"]:
+    d.mkdir(parents=True, exist_ok=True)
+
+# ========== B1. HỢP NHẤT ==========
+st.subheader("1) Hợp nhất file từ HT DMS (tuỳ chọn)")
 uploaded_files = st.file_uploader(
     "Tải nhiều file DMS (Excel) để hợp nhất",
     type=["xlsx", "xls"],
     accept_multiple_files=True
 )
 
+save_mode = st.radio(
+    "Chọn cách lưu file upload:",
+    ["Dùng tạm (không lưu)", "Lưu vào data/raw"],
+    horizontal=True
+)
+
 if uploaded_files and st.button("📂 Hợp nhất dữ liệu"):
+    # Chọn nơi đặt file đầu vào
+    if save_mode == "Dùng tạm (không lưu)":
+        work_dir = Path(tempfile.mkdtemp(prefix="merge_tmp_"))
+    else:
+        work_dir = RAW_DIR
+
+    # Ghi file lên work_dir
     saved_paths = []
     for f in uploaded_files:
-        out_path = RAW_DIR / f.name
-        with open(out_path, "wb") as f2:
-            f2.write(f.getbuffer())
+        out_path = work_dir / f.name
+        with open(out_path, "wb") as g:
+            g.write(f.getbuffer())
         saved_paths.append(out_path)
-    st.success(f"✅ Đã lưu {len(saved_paths)} file vào {RAW_DIR}")
+
+    st.success(f"Đã nhận {len(saved_paths)} file.")
 
     try:
-        out_merged = RAW_DIR / "output-tra-thuong.xlsx"
-        merge_run(input_dir=RAW_DIR, output_path=out_merged)   # gọi hàm run mới
+        out_merged = work_dir / "output-tra-thuong.xlsx"
+        merge_run(input_dir=work_dir, output_path=out_merged)
         st.success(f"✅ Hợp nhất xong: `{out_merged}`")
+
+        # Cho phép tải trực tiếp file hợp nhất
+        with open(out_merged, "rb") as f:
+            st.download_button(
+                "⬇️ Tải output-tra-thuong.xlsx",
+                data=f.read(),
+                file_name="output-tra-thuong.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
     except Exception as e:
         st.error(f"❌ Lỗi khi hợp nhất: {e}")
 
+    finally:
+        # Nếu là thư mục tạm thì dọn dẹp
+        if save_mode == "Dùng tạm (không lưu)":
+            try:
+                shutil.rmtree(work_dir, ignore_errors=True)
+            except Exception:
+                pass
+
 st.divider()
 
-# ================== BƯỚC 2: CHẠY TÍNH TRẢ THƯỞNG (MAIN) ==================
-st.markdown("### 2) Chạy tính trả thưởng (main)")
+# ========== B2. CHẠY MAIN ==========
+st.subheader("2) Chạy tính trả thưởng (main)")
 input_file = st.file_uploader(
     "Chọn 1 file đầu vào có sheet 'Số tiền đã trả thưởng' (ví dụ: output-tra-thuong.xlsx)",
     type=["xlsx", "xls"],
 )
 
 if input_file:
-    in_path = RAW_DIR / input_file.name
+    # không bắt buộc lưu; dùng tạm file để đọc
+    tmp_dir = Path(tempfile.mkdtemp(prefix="main_tmp_"))
+    in_path = tmp_dir / input_file.name
     with open(in_path, "wb") as f:
         f.write(input_file.getbuffer())
-    st.info(f"📄 Đã lưu file vào: `{in_path}`")
+    st.info(f"Đã nhận file: `{input_file.name}`")
 
     if st.button("▶️ Tính thưởng"):
         try:
-            # GỌI HÀM MAIN của bạn
+            out_path = tmp_dir / "output.xlsx"
+            alert_path = tmp_dir / "alert.xlsx"
+
             main_run(
                 input_file=in_path,
-                output_file="output.xlsx",
-                alert_file="alert.xlsx"
+                output_file=out_path,
+                alert_file=alert_path
             )
 
-            # Di chuyển file kết quả vào exports + nút tải + preview
-            out_links = []
-            for fn in ["output.xlsx", "alert.xlsx"]:
-                p = Path(fn)
+            # Hiển thị & cho tải
+            for p in [out_path, alert_path]:
                 if p.exists():
-                    dest = EXPORT_DIR / p.name
-                    if dest.exists():  # tránh ghi đè
-                        i = 1
-                        base, ext = os.path.splitext(p.name)
-                        while (EXPORT_DIR / f"{base}_{i}{ext}").exists():
-                            i += 1
-                        dest = EXPORT_DIR / f"{base}_{i}{ext}"
-                    os.replace(p, dest)
-                    out_links.append(dest)
-
-            if out_links:
-                st.success("✅ Xử lý xong. Xem nhanh & tải file bên dưới.")
-                for p in out_links:
-                    st.markdown(f"**Tệp:** `{p.name}`")
-                    # Preview 100 dòng đầu sheet đầu tiên (nếu đọc được)
+                    st.markdown(f"**Tệp tạo:** `{p.name}`")
                     try:
                         xls = pd.ExcelFile(p)
                         first_sheet = xls.sheet_names[0]
@@ -99,14 +119,16 @@ if input_file:
 
                     with open(p, "rb") as f:
                         st.download_button(
-                            label=f"⬇️ Tải {p.name}",
-                            data=f,
+                            f"⬇️ Tải {p.name}",
+                            data=f.read(),
                             file_name=p.name,
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_{p.name}",
+                            key=f"dl_{p.name}"
                         )
-            else:
-                st.warning("Không thấy `output.xlsx` / `alert.xlsx` sau khi chạy.")
+                else:
+                    st.warning(f"Không thấy file {p.name}")
 
         except Exception as e:
             st.error(f"❌ Lỗi khi tính thưởng: {e}")
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
