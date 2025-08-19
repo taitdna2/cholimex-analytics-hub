@@ -261,8 +261,9 @@ def run(
                   code=code_npp, name=ten_npp, customer_code=ma_kh, customer_name=ten_kh)
             W = X
         if code_npp not in sheet3:
+            # BỎ KHÓA 'STT' Ở ĐÂY (tránh trùng khi insert phía dưới)
             sheet3[code_npp] = {
-                'STT': None, 'CODE NPP': code_npp, 'NHÀ PHÂN PHỐI': ten_npp,
+                'CODE NPP': code_npp, 'NHÀ PHÂN PHỐI': ten_npp,
                 'CÁ KOS + XÚC XÍCH THÁNH GIÓNG 50': 0,
                 'GIA VỊ GÓI 50': 0, 'GIA VỊ GÓI 80': 0,
                 'SẢN PHẨM ĐÔNG LẠNH 50': 0, 'SẢN PHẨM ĐÔNG LẠNH 100': 0,
@@ -299,6 +300,9 @@ def run(
 
     sheet3_df = pd.DataFrame(sheet3.values())
     sheet3_df.index += 1
+    # Nếu vì lý do nào đó STT đã tồn tại, drop trước khi insert để tránh lỗi
+    if 'STT' in sheet3_df.columns:
+        sheet3_df = sheet3_df.drop(columns=['STT'])
     sheet3_df.insert(0, 'STT', sheet3_df.index)
 
     dfs_out = {'Sheet1': pandas.DataFrame(out_df),
