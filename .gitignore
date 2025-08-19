@@ -1,9 +1,32 @@
-.DS_Store
-.venv/
+# Python
 __pycache__/
-.ipynb_checkpoints/
-.streamlit/secrets.toml
+*.py[cod]
+*.pyo
+*.pyd
+*.so
 
-# Không theo dõi file người dùng upload
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+
+# macOS
+.DS_Store
+
+# VS Code / IDE
+.vscode/
+.idea/
+
+# Streamlit temporary
+.streamlit/secrets.toml
+.streamlit/config.toml
+
+# Data upload (chỉ dùng tạm, không commit)
 data/uploads/
-uploads/
+
+# Logs
+*.log
