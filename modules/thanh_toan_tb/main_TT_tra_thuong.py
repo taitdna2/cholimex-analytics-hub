@@ -38,7 +38,7 @@ def run(
         if col not in dfs.columns:
             dfs[col] = pd.NA
 
-    # ===== GIỮ NGUYÊN LOGIC GỐC (đoạn dưới giữ như bạn gửi) =====
+    # ===== GIỮ NGUYÊN LOGIC GỐC =====
     alert_list: list[dict] = []
 
     def alert(msg: str, code=None, name=None, customer_code=None, customer_name=None):
@@ -261,7 +261,7 @@ def run(
                   code=code_npp, name=ten_npp, customer_code=ma_kh, customer_name=ten_kh)
             W = X
         if code_npp not in sheet3:
-            # BỎ KHÓA 'STT' Ở ĐÂY (tránh trùng khi insert phía dưới)
+            # KHÔNG đặt 'STT' ở đây để tránh trùng khi insert
             sheet3[code_npp] = {
                 'CODE NPP': code_npp, 'NHÀ PHÂN PHỐI': ten_npp,
                 'CÁ KOS + XÚC XÍCH THÁNH GIÓNG 50': 0,
@@ -300,19 +300,162 @@ def run(
 
     sheet3_df = pd.DataFrame(sheet3.values())
     sheet3_df.index += 1
-    # Nếu vì lý do nào đó STT đã tồn tại, drop trước khi insert để tránh lỗi
     if 'STT' in sheet3_df.columns:
         sheet3_df = sheet3_df.drop(columns=['STT'])
     sheet3_df.insert(0, 'STT', sheet3_df.index)
 
-    dfs_out = {'Sheet1': pandas.DataFrame(out_df),
-               'Sheet2': pd.DataFrame(out_df2),
-               'Sheet3': sheet3_df}
+    # ====== TẠO DF CHO 3 SHEET ======
+    df1_raw = pandas.DataFrame(out_df)    # nguồn sheet1 (có 2 dòng nhãn)
+    df2 = pandas.DataFrame(out_df2)       # nguồn sheet2
+    df3 = sheet3_df.copy()                # sheet3
+
+    # Sheet1: bỏ 2 dòng nhãn đầu, map tên cột theo “Đạt mức …”
+    df1 = df1_raw.iloc[2:].reset_index(drop=True).rename(columns={
+        "CODE NPP": "CODE NPP",
+        "TÊN NPP": "TÊN NPP",
+        "C": "Đạt mức 420", "D": "Đạt mức 300", "E": "Đạt mức 120",            # KỆ ĐẬU LINE
+        "F": "Đạt mức 420", "G": "Đạt mức 300", "H": "Đạt mức 120",            # KỆ 4 TẦNG
+        "I": "Đạt mức 260", "J": "Đạt mức 180", "K": "Đạt mức 80",             # KỆ 3 TẦNG
+        "L": "Đạt mức 220", "M": "Đạt mức 160", "N": "Đạt mức 60",             # WINDOW FRAME
+        "O": "Đạt mức 170", "P": "Đạt mức 120", "Q": "Đạt mức 50",             # GIA VỊ CUỘC SỐNG
+        "R": "Đạt mức 90",                                                    # NGON ĐẾN KHÁT KHAO
+        "S": "Đạt mức 40",                                                    # RỔ + 2 VĨ TREO
+        "T": "Đạt mức 20", "U": "Đạt mức 40",                                  # RỔ DÀI HẠN
+        "V": "Đạt mức 20",                                                    # KHAY GIA VỊ
+        "W": "Đạt mức 20", "X": "Đạt mức 30", "Y": "Đạt mức 40",               # VĨ TREO DÀI HẠN
+        "Z": "Đạt mức 30",                                                    # XỐT LẨU THÁI & KIM CHI
+        "AA": "TỔNG SỐ SUẤT TRẢ THƯỞNG",
+        "AB": "TỔNG TIỀN TRẢ THƯỞNG",
+    })
 
     print(f"Bắt đầu ghi file {output_file}...")
-    with pandas.ExcelWriter(str(output_file), engine='xlsxwriter') as writer:
-        for name, df in dfs_out.items():
-            df.to_excel(writer, sheet_name=name, index=False)
+    with pandas.ExcelWriter(str(output_file), engine="xlsxwriter") as writer:
+        wb = writer.book
+
+        # ---------------- Sheet1 ----------------
+        sheet1_name = "Sheet1"
+        df1.to_excel(writer, sheet_name=sheet1_name, index=False, startrow=2)
+        ws1 = writer.sheets[sheet1_name]
+
+        # Formats
+        fmt_grp = wb.add_format({"bold": True, "align": "center", "valign": "vcenter",
+                                 "bg_color": "#CDE4C2", "border": 1})
+        fmt_banner = wb.add_format({"bold": True, "align": "center", "valign": "vcenter",
+                                    "bg_color": "#F6C69E", "border": 1})
+        fmt_sub = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
+        fmt_hdr = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
+        fmt_cell_center = wb.add_format({"align": "center", "border": 1})
+        fmt_cell_int = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        fmt_cell_money = wb.add_format({"align": "right", "border": 1, "num_format": "#,##0"})
+
+        # Banner + nhóm
+        ws1.merge_range(0, 2, 0, 16, "CHƯƠNG TRÌNH CHƯNG BÀY", fmt_banner)  # C1:Q1
+        ws1.merge_range(1, 2, 1, 4,  "KỆ ĐẬU LINE", fmt_grp)               # C2:E2
+        ws1.merge_range(1, 5, 1, 7,  "KỆ 4 TẦNG", fmt_grp)                 # F2:H2
+        ws1.merge_range(1, 8, 1, 10, "KỆ 3 TẦNG", fmt_grp)                 # I2:K2
+        ws1.merge_range(1, 11, 1, 13, "WINDOW FRAME", fmt_grp)             # L2:N2
+        ws1.merge_range(1, 14, 1, 16, "GIA VỊ CUỘC SỐNG", fmt_grp)         # O2:Q2
+        ws1.write(1, 17, "NGON ĐẾN KHÁT KHAO", fmt_grp)                    # R2
+        ws1.write(1, 18, "RỔ + 2 VĨ TREO", fmt_grp)                        # S2
+        ws1.merge_range(1, 19, 1, 20, "RỔ DÀI HẠN", fmt_grp)               # T2:U2
+        ws1.write(1, 21, "KHAY GIA VỊ", fmt_grp)                           # V2
+        ws1.merge_range(1, 22, 1, 24, "VĨ TREO DÀI HẠN", fmt_grp)          # W2:Y2
+        ws1.write(1, 25, "XỐT LẨU THÁI & XỐT LẨU KIM CHI", fmt_grp)        # Z2
+        ws1.merge_range(0, 26, 1, 26, "TỔNG SỐ SUẤT TRẢ THƯỞNG", fmt_banner)  # AA1:AA2
+        ws1.merge_range(0, 27, 1, 27, "TỔNG TIỀN TRẢ THƯỞNG", fmt_banner)     # AB1:AB2
+
+        # Subheaders “Đạt mức …”
+        subs = [
+            (2, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"]),   # C-E
+            (5, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"]),   # F-H
+            (8, ["Đạt mức 260","Đạt mức 180","Đạt mức 80"]),    # I-K
+            (11,["Đạt mức 220","Đạt mức 160","Đạt mức 60"]),    # L-N
+            (14,["Đạt mức 170","Đạt mức 120","Đạt mức 50"]),    # O-Q
+        ]
+        for start_col, labels in subs:
+            for i, lab in enumerate(labels):
+                ws1.write(2, start_col + i, lab, fmt_sub)
+        ws1.write(2, 17, "Đạt mức 90", fmt_sub)   # R
+        ws1.write(2, 18, "Đạt mức 40", fmt_sub)   # S
+        ws1.write(2, 19, "Đạt mức 20", fmt_sub)   # T
+        ws1.write(2, 20, "Đạt mức 40", fmt_sub)   # U
+        ws1.write(2, 21, "Đạt mức 20", fmt_sub)   # V
+        ws1.write(2, 22, "Đạt mức 20", fmt_sub)   # W
+        ws1.write(2, 23, "Đạt mức 30", fmt_sub)   # X
+        ws1.write(2, 24, "Đạt mức 40", fmt_sub)   # Y
+        ws1.write(2, 25, "Đạt mức 30", fmt_sub)   # Z
+
+        # Header CODE/TÊN
+        ws1.write(2, 0, "CODE NPP", fmt_hdr)
+        ws1.write(2, 1, "TÊN NPP", fmt_hdr)
+
+        # Độ rộng cột + format số/tiền
+        ws1.set_column(0, 1, 26)                   # CODE/TÊN
+        ws1.set_column(2, 25, 12, fmt_cell_center) # các “đạt mức”
+        ws1.set_column(26, 26, 18, fmt_cell_int)   # AA
+        ws1.set_column(27, 27, 20, fmt_cell_money) # AB
+
+        # Freeze 3 hàng, 2 cột
+        ws1.freeze_panes(3, 2)
+
+        # ---------------- Sheet2 ----------------
+        # STT + header cam + độ rộng + freeze
+        df2_stt = df2.copy()
+        df2_stt.index += 1
+        if "STT" in df2_stt.columns:
+            df2_stt = df2_stt.drop(columns=["STT"])
+        df2_stt.insert(0, "STT", df2_stt.index)
+
+        df2_stt.to_excel(writer, sheet_name="Sheet2", index=False, startrow=1)
+        ws2 = writer.sheets["Sheet2"]
+
+        hdr2 = wb.add_format({
+            "bold": True, "align": "center", "valign": "vcenter",
+            "bg_color": "#F6C69E", "border": 1
+        })
+        cell_center = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        cell_money  = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
+
+        for col, name in enumerate(df2_stt.columns.tolist()):
+            ws2.write(1, col, name, hdr2)
+        ws2.set_row(1, 20)
+
+        # độ rộng cột
+        ws2.set_column(0, 0, 6)     # STT
+        ws2.set_column(1, 1, 16)    # CODE NPP
+        ws2.set_column(2, 2, 30)    # TÊN NPP
+        ws2.set_column(3, len(df2_stt.columns)-1, 14, cell_center)
+
+        # định dạng tiền cho 'TỔNG TIỀN' nếu có
+        try:
+            money_idx = df2_stt.columns.tolist().index("TỔNG TIỀN")
+            ws2.set_column(money_idx, money_idx, 18, cell_money)
+        except ValueError:
+            pass
+
+        # Freeze: 1 hàng + 1 cột
+        ws2.freeze_panes(2, 1)
+
+        # ---------------- Sheet3 ----------------
+        df3.to_excel(writer, sheet_name="Sheet3", index=False, startrow=1)
+        ws3 = writer.sheets["Sheet3"]
+
+        hdr3 = wb.add_format({"bold": True, "align": "center", "valign": "vcenter",
+                              "bg_color": "#F6C69E", "border": 1})
+        for col, name in enumerate(df3.columns.tolist()):
+            ws3.write(1, col, name, hdr3)
+        ws3.set_row(1, 20)
+
+        ws3.set_column(0, 0, 6)    # STT
+        ws3.set_column(1, 1, 16)   # CODE NPP
+        ws3.set_column(2, 2, 30)   # NHÀ PHÂN PHỐI
+        ws3.set_column(3, 8, 16, cell_center)  # các cột chỉ tiêu
+        try:
+            money_col = df3.columns.tolist().index("TỔNG TIỀN")
+            ws3.set_column(money_col, money_col, 18, cell_money)
+        except ValueError:
+            pass
+
     print(f"Đã xuất file {output_file} thành công!")
 
     if alert_list:
