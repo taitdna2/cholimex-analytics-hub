@@ -332,89 +332,102 @@ def run(
     with pandas.ExcelWriter(str(output_file), engine="xlsxwriter") as writer:
         wb = writer.book
 
-        # ---------------- Sheet1 ----------------
+                # ---------------- Sheet1 ----------------
         sheet1_name = "Sheet1"
         df1.to_excel(writer, sheet_name=sheet1_name, index=False, startrow=2)
         ws1 = writer.sheets[sheet1_name]
-
-        # Formats
-        fmt_grp = wb.add_format({"bold": True, "align": "center", "valign": "vcenter",
-                                 "bg_color": "#CDE4C2", "border": 1})
-        fmt_banner = wb.add_format({"bold": True, "align": "center", "valign": "vcenter",
-                                    "bg_color": "#F6C69E", "border": 1})
-        fmt_sub = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
-        fmt_hdr = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
-
-        # Banner + nhóm
-        ws1.merge_range(0, 2, 0, 16, "CHƯƠNG TRÌNH CHƯNG BÀY", fmt_banner)  # C1:Q1
-        ws1.merge_range(1, 2, 1, 4,  "KỆ ĐẬU LINE", fmt_grp)               # C2:E2
-        ws1.merge_range(1, 5, 1, 7,  "KỆ 4 TẦNG", fmt_grp)                 # F2:H2
-        ws1.merge_range(1, 8, 1, 10, "KỆ 3 TẦNG", fmt_grp)                 # I2:K2
-        ws1.merge_range(1, 11, 1, 13, "WINDOW FRAME", fmt_grp)             # L2:N2
-        ws1.merge_range(1, 14, 1, 16, "GIA VỊ CUỘC SỐNG", fmt_grp)         # O2:Q2
-        ws1.write(1, 17, "NGON ĐẾN KHÁT KHAO", fmt_grp)                    # R2
-        ws1.write(1, 18, "RỖ + 2 VĨ TREO", fmt_grp)                        # S2
-        ws1.merge_range(1, 19, 1, 20, "RỔ DÀI HẠN", fmt_grp)               # T2:U2
-        ws1.write(1, 21, "KHAY GIA VỊ", fmt_grp)                           # V2
-        ws1.merge_range(1, 22, 1, 24, "VĨ TREO DÀI HẠN", fmt_grp)          # W2:Y2
-        ws1.write(1, 25, "XỐT LẨU THÁI & XỐT LẨU KIM CHI", fmt_grp)        # Z2
-        ws1.merge_range(0, 26, 1, 26, "TỔNG SỐ SUẤT TRẢ THƯỞNG", fmt_banner)  # AA1:AA2
-        ws1.merge_range(0, 27, 1, 27, "TỔNG TIỀN TRẢ THƯỞNG", fmt_banner)     # AB1:AB2
-
-        # Subheaders “Đạt mức …”
-        subs = [
-            (2, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"]),   # C-E
-            (5, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"]),   # F-H
-            (8, ["Đạt mức 260","Đạt mức 180","Đạt mức 80"]),    # I-K
-            (11,["Đạt mức 220","Đạt mức 160","Đạt mức 60"]),    # L-N
-            (14,["Đạt mức 170","Đạt mức 120","Đạt mức 50"]),    # O-Q
-        ]
-        for start_col, labels in subs:
-            for i, lab in enumerate(labels):
-                ws1.write(2, start_col + i, lab, fmt_sub)
-        ws1.write(2, 17, "Đạt mức 90", fmt_sub)   # R
-        ws1.write(2, 18, "Đạt mức 40", fmt_sub)   # S
-        ws1.write(2, 19, "Đạt mức 20", fmt_sub)   # T
-        ws1.write(2, 20, "Đạt mức 40", fmt_sub)   # U
-        ws1.write(2, 21, "Đạt mức 20", fmt_sub)   # V
-        ws1.write(2, 22, "Đạt mức 20", fmt_sub)   # W
-        ws1.write(2, 23, "Đạt mức 30", fmt_sub)   # X
-        ws1.write(2, 24, "Đạt mức 40", fmt_sub)   # Y
-        ws1.write(2, 25, "Đạt mức 30", fmt_sub)   # Z
-
-        # Header CODE/TÊN
-        ws1.write(2, 0, "CODE NPP", fmt_hdr)
-        ws1.write(2, 1, "TÊN NPP", fmt_hdr)
-
-        # Độ rộng cột (KHÔNG gắn format ở set_column để khỏi kẻ thừa)
-        ws1.set_column(0, 1, 26)          # CODE/TÊN
-        ws1.set_column(2, 25, 12)         # các “đạt mức”
-        ws1.set_column(26, 26, 18)        # AA
-        ws1.set_column(27, 27, 20)        # AB
-
-        # Freeze 3 hàng, 2 cột
+        
+        # ===== Formats (màu giống ảnh) =====
+        title_fmt = wb.add_format({
+            "bold": True, "align": "center", "valign": "vcenter",
+            "bg_color": "#F6C69E", "border": 1, "font_size": 12
+        })
+        grp_fmt = wb.add_format({   # hàng NHÓM (xanh lá đậm)
+            "bold": True, "align": "center", "valign": "vcenter",
+            "bg_color": "#CDE4C2", "border": 1
+        })
+        sub_fmt = wb.add_format({   # hàng ĐẠT MỨC (xanh lá nhạt)
+            "bold": True, "align": "center", "valign": "vcenter",
+            "bg_color": "#E8F4DF", "border": 1
+        })
+        left_hdr = wb.add_format({  # CODE/TÊN
+            "bold": True, "align": "center", "valign": "vcenter",
+            "bg_color": "#E8F4DF", "border": 1
+        })
+        
+        # ===== Banner & merge nhóm đúng layout ảnh =====
+        # C1:Q1
+        ws1.merge_range(0, 2, 0, 16, "CHƯƠNG TRÌNH CHƯNG BÀY", title_fmt)
+        
+        # Hàng nhóm (row=1)
+        ws1.merge_range(1,  2, 1,  4,  "KỆ ĐẬU LINE", grp_fmt)              # C2:E2
+        ws1.merge_range(1,  5, 1,  7,  "KỆ 4 TẦNG", grp_fmt)                # F2:H2
+        ws1.merge_range(1,  8, 1, 10,  "KỆ 3 TẦNG", grp_fmt)                # I2:K2
+        ws1.merge_range(1, 11, 1, 13,  "WINDOW FRAME", grp_fmt)            # L2:N2
+        ws1.merge_range(1, 14, 1, 16,  "GIA VỊ CUỘC SỐNG", grp_fmt)        # O2:Q2
+        ws1.write(1, 17, "NGON ĐẾN KHÁT KHAO", grp_fmt)                    # R2
+        ws1.write(1, 18, "RỔ + 2 VĨ TREO", grp_fmt)                        # S2
+        ws1.merge_range(1, 19, 1, 20,  "RỔ DÀI HẠN", grp_fmt)              # T2:U2
+        ws1.write(1, 21, "KHAY GIA VỊ", grp_fmt)                           # V2
+        ws1.merge_range(1, 22, 1, 24,  "VĨ TREO DÀI HẠN", grp_fmt)         # W2:Y2
+        ws1.write(1, 25, "XỐT LẨU THÁI & XỐT LẨU KIM CHI", grp_fmt)        # Z2
+        ws1.merge_range(0, 26, 1, 26,  "TỔNG SỐ SUẤT TRẢ THƯỞNG", title_fmt)  # AA1:AA2
+        ws1.merge_range(0, 27, 1, 27,  "TỔNG TIỀN TRẢ THƯỞNG", title_fmt)     # AB1:AB2
+        
+        # Hàng sub (row=2) “Đạt mức …” với nền xanh nhạt
+        def write_sub(start_col, labels):
+            for i, text in enumerate(labels):
+                ws1.write(2, start_col + i, text, sub_fmt)
+        
+        write_sub( 2, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"])  # C-E
+        write_sub( 5, ["Đạt mức 420","Đạt mức 300","Đạt mức 120"])  # F-H
+        write_sub( 8, ["Đạt mức 260","Đạt mức 180","Đạt mức 80"])   # I-K
+        write_sub(11, ["Đạt mức 220","Đạt mức 160","Đạt mức 60"])   # L-N
+        write_sub(14, ["Đạt mức 170","Đạt mức 120","Đạt mức 50"])   # O-Q
+        ws1.write(2, 17, "Đạt mức 90",  sub_fmt)  # R
+        ws1.write(2, 18, "Đạt mức 40",  sub_fmt)  # S
+        ws1.write(2, 19, "Đạt mức 20",  sub_fmt)  # T
+        ws1.write(2, 20, "Đạt mức 40",  sub_fmt)  # U
+        ws1.write(2, 21, "Đạt mức 20",  sub_fmt)  # V
+        ws1.write(2, 22, "Đạt mức 20",  sub_fmt)  # W
+        ws1.write(2, 23, "Đạt mức 30",  sub_fmt)  # X
+        ws1.write(2, 24, "Đạt mức 40",  sub_fmt)  # Y
+        ws1.write(2, 25, "Đạt mức 30",  sub_fmt)  # Z
+        
+        # Header 2 cột đầu như ảnh
+        ws1.write(2, 0, "CODE NPP", left_hdr)
+        ws1.write(2, 1, "TÊN NPP",  left_hdr)
+        
+        # Độ rộng cột (không gắn format -> không kẻ thừa xuống dòng trống)
+        ws1.set_column(0, 1, 26)    # CODE/TÊN
+        ws1.set_column(2, 25, 12)   # C..Y
+        ws1.set_column(26, 26, 18)  # AA
+        ws1.set_column(27, 27, 20)  # AB
+        
+        # Freeze 3 hàng + 2 cột trái
         ws1.freeze_panes(3, 2)
-
-        # === KẺ VIỀN CHỈ TRONG VÙNG CÓ DỮ LIỆU (Sheet1) ===
-        data_start_row = 3                      # sau 3 hàng header (0..2)
-        data_end_row   = 2 + len(df1)           # 2 + số dòng dữ liệu
-        fmt_data_center = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
-        fmt_data_left   = wb.add_format({"align": "left",   "border": 1})
-        fmt_money       = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
-
-        # A:B (CODE/TÊN) – trái + viền
+        
+        # ===== KẺ VIỀN chỉ trong vùng có dữ liệu =====
+        data_start_row = 3                  # sau banner/nhóm/sub
+        data_end_row   = 2 + len(df1)       # cuối vùng dữ liệu
+        
+        fmt_cell_L  = wb.add_format({"align": "left",   "border": 1})
+        fmt_cell_C  = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        fmt_money   = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
+        
+        # A:B (trái)
         ws1.conditional_format(data_start_row, 0, data_end_row, 1,
-            {"type": "no_blanks", "format": fmt_data_left})
-        # C:Y – giữa + viền
+            {"type": "no_blanks", "format": fmt_cell_L})
+        # C:Y (giữa)
         ws1.conditional_format(data_start_row, 2, data_end_row, 24,
-            {"type": "no_blanks", "format": fmt_data_center})
-        # Z – giữa + viền
+            {"type": "no_blanks", "format": fmt_cell_C})
+        # Z (giữa)
         ws1.conditional_format(data_start_row, 25, data_end_row, 25,
-            {"type": "no_blanks", "format": fmt_data_center})
-        # AA – giữa + viền
+            {"type": "no_blanks", "format": fmt_cell_C})
+        # AA (giữa)
         ws1.conditional_format(data_start_row, 26, data_end_row, 26,
-            {"type": "no_blanks", "format": fmt_data_center})
-        # AB – tiền + viền
+            {"type": "no_blanks", "format": fmt_cell_C})
+        # AB (tiền)
         ws1.conditional_format(data_start_row, 27, data_end_row, 27,
             {"type": "no_blanks", "format": fmt_money})
 
@@ -533,3 +546,4 @@ def run(
 
 if __name__ == "__main__":
     run()
+
