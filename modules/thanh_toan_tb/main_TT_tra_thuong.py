@@ -427,9 +427,10 @@ def run(
         # AA (giữa)
         ws1.conditional_format(data_start_row, 26, data_end_row, 26,
             {"type": "no_blanks", "format": fmt_cell_C})
-        # AB (tiền)
-        ws1.conditional_format(data_start_row, 27, data_end_row, 27,
-            {"type": "no_blanks", "format": fmt_money})
+        # AB (TỔNG TIỀN TRẢ THƯỞNG) định dạng tiền
+        fmt_money = wb.add_format({"align": "right", "border": 1, "num_format": "#,##0"})
+        ws1.set_column(27, 27, 20, fmt_money)
+
 
         # ---------------- Sheet2 ----------------
         # STT + header cam + độ rộng + freeze
@@ -482,11 +483,11 @@ def run(
             ws2.conditional_format(s2_data_start, 3, s2_data_end, s2_last_col,
                 {"type": "no_blanks", "format": fmt_center})
 
-        # Cột tiền nếu có
+        # Cột "TỔNG TIỀN" (nếu có) -> định dạng tiền
+        fmt_money2 = wb.add_format({"align": "right", "border": 1, "num_format": "#,##0"})
         try:
             money_idx = df2_stt.columns.tolist().index("TỔNG TIỀN")
-            ws2.conditional_format(s2_data_start, money_idx, s2_data_end, money_idx,
-                {"type": "no_blanks", "format": fmt_money2})
+            ws2.set_column(money_idx, money_idx, 18, fmt_money2)
         except ValueError:
             pass
 
@@ -527,12 +528,12 @@ def run(
         if s3_last_col >= 3:
             ws3.conditional_format(s3_data_start, 3, s3_data_end, s3_last_col,
                 {"type": "no_blanks", "format": fmt_center3})
-
-        # TỔNG TIỀN (nếu có)
+            
+        # Cột "TỔNG TIỀN" (nếu có) -> định dạng tiền
+        fmt_money3 = wb.add_format({"align": "right", "border": 1, "num_format": "#,##0"})
         try:
             money_col = df3.columns.tolist().index("TỔNG TIỀN")
-            ws3.conditional_format(s3_data_start, money_col, s3_data_end, money_col,
-                {"type": "no_blanks", "format": fmt_money3})
+            ws3.set_column(money_col, money_col, 18, fmt_money3)
         except ValueError:
             pass
 
@@ -546,4 +547,5 @@ def run(
 
 if __name__ == "__main__":
     run()
+
 
