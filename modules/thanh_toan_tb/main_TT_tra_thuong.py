@@ -344,9 +344,6 @@ def run(
                                     "bg_color": "#F6C69E", "border": 1})
         fmt_sub = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
         fmt_hdr = wb.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1})
-        fmt_cell_center = wb.add_format({"align": "center", "border": 1})
-        fmt_cell_int = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
-        fmt_cell_money = wb.add_format({"align": "right", "border": 1, "num_format": "#,##0"})
 
         # Banner + nhóm
         ws1.merge_range(0, 2, 0, 16, "CHƯƠNG TRÌNH CHƯNG BÀY", fmt_banner)  # C1:Q1
@@ -356,7 +353,7 @@ def run(
         ws1.merge_range(1, 11, 1, 13, "WINDOW FRAME", fmt_grp)             # L2:N2
         ws1.merge_range(1, 14, 1, 16, "GIA VỊ CUỘC SỐNG", fmt_grp)         # O2:Q2
         ws1.write(1, 17, "NGON ĐẾN KHÁT KHAO", fmt_grp)                    # R2
-        ws1.write(1, 18, "RỔ + 2 VĨ TREO", fmt_grp)                        # S2
+        ws1.write(1, 18, "RỖ + 2 VĨ TREO", fmt_grp)                        # S2
         ws1.merge_range(1, 19, 1, 20, "RỔ DÀI HẠN", fmt_grp)               # T2:U2
         ws1.write(1, 21, "KHAY GIA VỊ", fmt_grp)                           # V2
         ws1.merge_range(1, 22, 1, 24, "VĨ TREO DÀI HẠN", fmt_grp)          # W2:Y2
@@ -389,14 +386,37 @@ def run(
         ws1.write(2, 0, "CODE NPP", fmt_hdr)
         ws1.write(2, 1, "TÊN NPP", fmt_hdr)
 
-        # Độ rộng cột + format số/tiền
-        ws1.set_column(0, 1, 26)                   # CODE/TÊN
-        ws1.set_column(2, 25, 12, fmt_cell_center) # các “đạt mức”
-        ws1.set_column(26, 26, 18, fmt_cell_int)   # AA
-        ws1.set_column(27, 27, 20, fmt_cell_money) # AB
+        # Độ rộng cột (KHÔNG gắn format ở set_column để khỏi kẻ thừa)
+        ws1.set_column(0, 1, 26)          # CODE/TÊN
+        ws1.set_column(2, 25, 12)         # các “đạt mức”
+        ws1.set_column(26, 26, 18)        # AA
+        ws1.set_column(27, 27, 20)        # AB
 
         # Freeze 3 hàng, 2 cột
         ws1.freeze_panes(3, 2)
+
+        # === KẺ VIỀN CHỈ TRONG VÙNG CÓ DỮ LIỆU (Sheet1) ===
+        data_start_row = 3                      # sau 3 hàng header (0..2)
+        data_end_row   = 2 + len(df1)           # 2 + số dòng dữ liệu
+        fmt_data_center = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        fmt_data_left   = wb.add_format({"align": "left",   "border": 1})
+        fmt_money       = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
+
+        # A:B (CODE/TÊN) – trái + viền
+        ws1.conditional_format(data_start_row, 0, data_end_row, 1,
+            {"type": "no_blanks", "format": fmt_data_left})
+        # C:Y – giữa + viền
+        ws1.conditional_format(data_start_row, 2, data_end_row, 24,
+            {"type": "no_blanks", "format": fmt_data_center})
+        # Z – giữa + viền
+        ws1.conditional_format(data_start_row, 25, data_end_row, 25,
+            {"type": "no_blanks", "format": fmt_data_center})
+        # AA – giữa + viền
+        ws1.conditional_format(data_start_row, 26, data_end_row, 26,
+            {"type": "no_blanks", "format": fmt_data_center})
+        # AB – tiền + viền
+        ws1.conditional_format(data_start_row, 27, data_end_row, 27,
+            {"type": "no_blanks", "format": fmt_money})
 
         # ---------------- Sheet2 ----------------
         # STT + header cam + độ rộng + freeze
@@ -413,28 +433,49 @@ def run(
             "bold": True, "align": "center", "valign": "vcenter",
             "bg_color": "#F6C69E", "border": 1
         })
-        cell_center = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
-        cell_money  = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
 
         for col, name in enumerate(df2_stt.columns.tolist()):
             ws2.write(1, col, name, hdr2)
         ws2.set_row(1, 20)
 
-        # độ rộng cột
+        # độ rộng cột (không gắn format)
         ws2.set_column(0, 0, 6)     # STT
         ws2.set_column(1, 1, 16)    # CODE NPP
         ws2.set_column(2, 2, 30)    # TÊN NPP
-        ws2.set_column(3, len(df2_stt.columns)-1, 14, cell_center)
-
-        # định dạng tiền cho 'TỔNG TIỀN' nếu có
-        try:
-            money_idx = df2_stt.columns.tolist().index("TỔNG TIỀN")
-            ws2.set_column(money_idx, money_idx, 18, cell_money)
-        except ValueError:
-            pass
+        ws2.set_column(3, len(df2_stt.columns)-1, 14)
 
         # Freeze: 1 hàng + 1 cột
         ws2.freeze_panes(2, 1)
+
+        # === KẺ VIỀN CHỈ TRONG VÙNG CÓ DỮ LIỆU (Sheet2) ===
+        s2_data_start = 2
+        s2_data_end   = 1 + len(df2_stt)
+        s2_last_col   = len(df2_stt.columns) - 1
+
+        fmt_left   = wb.add_format({"align": "left",   "border": 1})
+        fmt_center = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        fmt_money2 = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
+
+        # STT + CODE – giữa; TÊN – trái
+        ws2.conditional_format(s2_data_start, 0, s2_data_end, 0,
+            {"type": "no_blanks", "format": fmt_center})
+        ws2.conditional_format(s2_data_start, 1, s2_data_end, 1,
+            {"type": "no_blanks", "format": fmt_center})
+        ws2.conditional_format(s2_data_start, 2, s2_data_end, 2,
+            {"type": "no_blanks", "format": fmt_left})
+
+        # Các cột số còn lại – giữa
+        if s2_last_col >= 3:
+            ws2.conditional_format(s2_data_start, 3, s2_data_end, s2_last_col,
+                {"type": "no_blanks", "format": fmt_center})
+
+        # Cột tiền nếu có
+        try:
+            money_idx = df2_stt.columns.tolist().index("TỔNG TIỀN")
+            ws2.conditional_format(s2_data_start, money_idx, s2_data_end, money_idx,
+                {"type": "no_blanks", "format": fmt_money2})
+        except ValueError:
+            pass
 
         # ---------------- Sheet3 ----------------
         df3.to_excel(writer, sheet_name="Sheet3", index=False, startrow=1)
@@ -446,13 +487,39 @@ def run(
             ws3.write(1, col, name, hdr3)
         ws3.set_row(1, 20)
 
-        ws3.set_column(0, 0, 6)    # STT
-        ws3.set_column(1, 1, 16)   # CODE NPP
-        ws3.set_column(2, 2, 30)   # NHÀ PHÂN PHỐI
-        ws3.set_column(3, 8, 16, cell_center)  # các cột chỉ tiêu
+        # độ rộng (không gắn format)
+        ws3.set_column(0, 0, 6)     # STT
+        ws3.set_column(1, 1, 16)    # CODE NPP
+        ws3.set_column(2, 2, 30)    # NHÀ PHÂN PHỐI
+        ws3.set_column(3, len(df3.columns)-1, 16)
+
+        # === KẺ VIỀN CHỈ TRONG VÙNG CÓ DỮ LIỆU (Sheet3) ===
+        s3_data_start = 2
+        s3_data_end   = 1 + len(df3)
+        s3_last_col   = len(df3.columns) - 1
+
+        fmt_left3   = wb.add_format({"align": "left",   "border": 1})
+        fmt_center3 = wb.add_format({"align": "center", "border": 1, "num_format": "0"})
+        fmt_money3  = wb.add_format({"align": "right",  "border": 1, "num_format": "#,##0"})
+
+        # STT / CODE / NHÀ PHÂN PHỐI
+        ws3.conditional_format(s3_data_start, 0, s3_data_end, 0,
+            {"type": "no_blanks", "format": fmt_center3})
+        ws3.conditional_format(s3_data_start, 1, s3_data_end, 1,
+            {"type": "no_blanks", "format": fmt_center3})
+        ws3.conditional_format(s3_data_start, 2, s3_data_end, 2,
+            {"type": "no_blanks", "format": fmt_left3})
+
+        # Chỉ tiêu – giữa
+        if s3_last_col >= 3:
+            ws3.conditional_format(s3_data_start, 3, s3_data_end, s3_last_col,
+                {"type": "no_blanks", "format": fmt_center3})
+
+        # TỔNG TIỀN (nếu có)
         try:
             money_col = df3.columns.tolist().index("TỔNG TIỀN")
-            ws3.set_column(money_col, money_col, 18, cell_money)
+            ws3.conditional_format(s3_data_start, money_col, s3_data_end, money_col,
+                {"type": "no_blanks", "format": fmt_money3})
         except ValueError:
             pass
 
