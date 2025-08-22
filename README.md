@@ -8,8 +8,8 @@
 - 📑 Báo cáo trưng bày
 - ⚙️ Khác
 
-Bạn có thể chạy trực tiếp trên Streamlit Cloud tại đây: https://cholimex-analytics-app-1.streamlit.app/
-👉 Cholimex Analytics Hub
+Bạn có thể chạy trực tiếp trên Streamlit Cloud tại đây
+👉 Cholimex Analytics Hub : https://cholimex-analytics-app-1.streamlit.app/
 
 👤 Tác giả
 Nguyen Anh Tai
