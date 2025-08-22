@@ -8,28 +8,7 @@
 - 📑 Báo cáo trưng bày
 - ⚙️ Khác
 
----
-
-## 🚀 Cách chạy local
-
-```bash
-# clone repo
-git clone https://github.com/taitdna2/cholimex-analytics-hub.git
-cd cholimex-analytics-hub
-
-# tạo môi trường ảo (khuyên dùng)
-python -m venv .venv
-source .venv/bin/activate   # Mac/Linux
-.venv\Scripts\activate      # Windows
-
-# cài thư viện
-pip install -r requirements.txt
-
-# chạy app
-streamlit run app.py
-🌐 Dùng trực tuyến
-
-Bạn có thể chạy trực tiếp trên Streamlit Cloud tại đây:
+Bạn có thể chạy trực tiếp trên Streamlit Cloud tại đây: https://cholimex-analytics-app-1.streamlit.app/
 👉 Cholimex Analytics Hub
 
 👤 Tác giả
